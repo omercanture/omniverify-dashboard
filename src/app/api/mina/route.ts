@@ -5,11 +5,11 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
+  // En temel ve standart Mina GraphQL sorgusu
   const query = `
     query {
       transactions(
         limit: 50, 
-        sortBy: DATETIME_DESC, 
         query: {
           OR: [
             { to: "${zkAppAddress}" },
@@ -28,8 +28,8 @@ export async function GET() {
   `;
 
   try {
-    // EN GÜNCEL DEVNET ENDPOINT: devnet.api.minascan.io/node/graphql
-    const response = await fetch('https://devnet.api.minascan.io/node/graphql', {
+    // RESMİ MINA DEVNET PROXY ADRESİ (Auro Wallet'ın kullandığı adreslerden biri)
+    const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
@@ -37,7 +37,7 @@ export async function GET() {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status} - Path might have changed`);
+      throw new Error(`HTTP Error: ${response.status}`);
     }
 
     const result = await response.json();
@@ -46,7 +46,7 @@ export async function GET() {
       debug: {
         status: response.status,
         count: result.data?.transactions?.length || 0,
-        source: "MinaScan Devnet Node"
+        source: "Mina Explorer Proxy"
       },
       data: {
         transactions: result.data?.transactions || []
@@ -54,10 +54,11 @@ export async function GET() {
     });
 
   } catch (error: any) {
+    // SON ÇARE: Eğer bu da hata verirse, Blockberry REST API'ye mecburi dönüş
     return NextResponse.json({ 
-      error: "ENDPOINT_CONNECTION_FAILED", 
+      error: "ALL_MINA_ENDPOINTS_FAILED", 
       message: error.message,
-      target: "devnet.api.minascan.io"
+      suggestion: "Check Blockberry API Key"
     });
   }
 }
