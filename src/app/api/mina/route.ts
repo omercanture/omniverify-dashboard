@@ -5,18 +5,20 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  // Account bazlı sorgu: Bu hesapla ilgili her şeyi getirir.
+  // MinaExplorer / Minascan'in en temel ödeme sorgusu
   const query = `
-    query MyQuery {
-      account(publicKey: "${zkAppAddress}") {
-        transactions(limit: 20) {
-          hash
-          from
-          to
-          memo
-          dateTime
-          status
-        }
+    query {
+      payments(
+        query: { receiver: "${zkAppAddress}" }, 
+        limit: 20, 
+        sortBy: DATETIME_DESC
+      ) {
+        hash
+        from
+        to: receiver
+        memo
+        dateTime
+        status
       }
     }
   `;
@@ -26,21 +28,22 @@ export async function GET() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
+      cache: 'no-store' // Vercel'in önbelleğe almasını engeller
     });
 
     const result = await response.json();
-
-    // Veri yapısı burada account -> transactions şeklinde geliyor
-    const transactions = result.data?.account?.transactions || [];
     
+    // API 'payments' olarak döndüğü için Dashboard'a 'transactions' olarak çeviriyoruz
+    const payments = result.data?.payments || [];
+
     return NextResponse.json({
       data: {
-        transactions: transactions
+        transactions: payments
       }
     });
 
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error("Critical API Error:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }

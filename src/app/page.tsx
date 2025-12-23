@@ -35,29 +35,30 @@ export default function FuturisticDashboard() {
   };
 
   const fetchTransactions = useCallback(async () => {
-  try {
-    const response = await fetch('/api/mina', { cache: 'no-store' });
-    const result = await response.json();
-    const rawData = result.data?.transactions || [];
+    try {
+      const response = await fetch('/api/mina', { cache: 'no-store' });
+      const result = await response.json();
+      const rawData = result.data?.transactions || [];
 
-    if (rawData.length > 0) {
-      const formatted = rawData.map((item: any) => ({
-        id: item.hash,
-        memoHash: (item.memo || "").trim(),
-        source: (item.memo || "").toLowerCase().includes('twitter') ? 'X.com Verified' : 'Secure Web',
-        date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Certified',
-        status: item.status === 'applied' ? 'CERTIFIED' : 'PENDING',
-        hash: item.hash,
-        from: item.from || "" 
-      }));
-      setAllProofs(formatted);
+if (rawData.length > 0) {
+  const formatted = rawData.map((item: any) => ({
+    id: item.hash,
+    // Memo alanı bazen boş gelebilir, null check ekledik
+    memoHash: item.memo ? item.memo.toString().trim() : "",
+    source: (item.memo || "").includes('Proof') ? 'X.com Verified' : 'Universal Entry',
+    date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Certified',
+    status: item.status === 'applied' ? 'CERTIFIED' : 'PENDING',
+    hash: item.hash,
+    from: item.from || "" 
+  }));
+  setAllProofs(formatted);
+}
+    } catch (e) { 
+      console.error("Sync Error:", e); 
+    } finally { 
+      setLoading(false); 
     }
-  } catch (e) { 
-    console.error("Sync Error:", e); 
-  } finally { 
-    setLoading(false); 
-  }
-}, []);
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
