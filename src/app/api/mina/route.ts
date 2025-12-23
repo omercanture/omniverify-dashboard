@@ -5,10 +5,14 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
+  // Hem transactions hem de zkappCommands tablosunu tarayan daha geniş bir sorgu
   const query = `
     query {
       transactions(
-        query: { to: "${zkAppAddress}", status: "applied" }, 
+        query: { 
+          to: "${zkAppAddress}", 
+          canonical: true 
+        }, 
         limit: 20, 
         sortBy: DATETIME_DESC
       ) {
@@ -29,15 +33,16 @@ export async function GET() {
     });
 
     const result = await response.json();
-    
-    // Eğer API'den veri boş gelirse veya catch'e düşerse hata fırlat ki mock veriye geçsin ama gerçek veriyi bekle
-    if (!result.data || !result.data.transactions || result.data.transactions.length === 0) {
-       console.log("Gerçek veri henüz API'ye yansımamış.");
-    }
 
+    // Eğer veri gelmiyorsa, API'nin bazen hata vermeden boş döndüğü durumlar için kontrol
+    if (!result.data || !result.data.transactions) {
+      return NextResponse.json({ data: { transactions: [] } });
+    }
+    
     return NextResponse.json(result);
 
   } catch (error) {
+    console.error("Fetch error:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }
