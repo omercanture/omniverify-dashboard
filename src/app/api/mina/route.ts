@@ -14,7 +14,7 @@ export async function GET() {
       headers: { 
         'accept': 'application/json',
         // Ücretsiz bir key alıp buraya koyman gerekebilir: https://dashboard.blockberry.one/
-        // 'x-api-key': 'undefined' 
+        // 'x-api-key': 'nRFZ3N2QIFPLosXdW37KvvEnJ7evef' 
       },
       cache: 'no-store'
     });
