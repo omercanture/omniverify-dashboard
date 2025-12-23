@@ -5,45 +5,46 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  // MinaExplorer / Minascan'in en temel ödeme sorgusu
+  // En sağlam sorgu: Tablo ismini 'transactions' yapıp, 
+  // filtreyi sadece 'to' (alıcı) üzerinden kuruyoruz.
   const query = `
     query {
-      payments(
-        query: { receiver: "${zkAppAddress}" }, 
-        limit: 20, 
-        sortBy: DATETIME_DESC
+      transactions(
+        limit: 50, 
+        sortBy: DATETIME_DESC, 
+        query: { to: "${zkAppAddress}" }
       ) {
         hash
         from
-        to: receiver
+        to
         memo
         dateTime
         status
+        kind
       }
     }
   `;
 
   try {
-    const response = await fetch('https://api.minascan.io/devnet/v1/graphql', {
+    // Önce MinaExplorer'ı deniyoruz (genellikle daha stabildir)
+    const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
-      cache: 'no-store' // Vercel'in önbelleğe almasını engeller
+      cache: 'no-store'
     });
 
     const result = await response.json();
-    
-    // API 'payments' olarak döndüğü için Dashboard'a 'transactions' olarak çeviriyoruz
-    const payments = result.data?.payments || [];
+    const txs = result.data?.transactions || [];
 
     return NextResponse.json({
       data: {
-        transactions: payments
+        transactions: txs
       }
     });
 
   } catch (error) {
-    console.error("Critical API Error:", error);
+    console.error("Fetch hatası:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }
