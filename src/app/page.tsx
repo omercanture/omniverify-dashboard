@@ -40,19 +40,23 @@ export default function FuturisticDashboard() {
       const result = await response.json();
       const rawData = result.data?.transactions || [];
 
-if (rawData.length > 0) {
-  const formatted = rawData.map((item: any) => ({
-    id: item.hash,
-    // Memo alanı bazen boş gelebilir, null check ekledik
-    memoHash: item.memo ? item.memo.toString().trim() : "",
-    source: (item.memo || "").includes('Proof') ? 'X.com Verified' : 'Universal Entry',
-    date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Certified',
-    status: item.status === 'applied' ? 'CERTIFIED' : 'PENDING',
-    hash: item.hash,
-    from: item.from || "" 
-  }));
-  setAllProofs(formatted);
-}
+      if (rawData.length > 0) {
+        const formatted = rawData.map((item: any) => {
+          // Status kontrolünü güvenli hale getirdik (applied veya applied)
+          const isApplied = item.status && item.status.toString().toLowerCase() === 'applied';
+          
+          return {
+            id: item.hash,
+            memoHash: item.memo ? item.memo.toString().trim() : "",
+            source: (item.memo || "").includes('Proof') || (item.memo || "").length > 20 ? 'X.com Verified' : 'Universal Entry',
+            date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Certified',
+            status: isApplied ? 'CERTIFIED' : 'PENDING',
+            hash: item.hash,
+            from: item.from || "" 
+          };
+        });
+        setAllProofs(formatted);
+      }
     } catch (e) { 
       console.error("Sync Error:", e); 
     } finally { 
@@ -115,12 +119,12 @@ if (rawData.length > 0) {
     return () => clearInterval(interval);
   }, [fetchTransactions]);
 
-  // --- HESAPLAMALAR BURADA OLMALI ---
-  // Sadece onaylanmış (applied) olanları filtrele
+  // --- HESAPLAMALAR ---
+  // Onaylanmış tüm işlemler
   const certifiedOnly = allProofs.filter(p => p.status === 'CERTIFIED');
 
-  // Kişisel Kasa: Adres eşleşenleri filtrele
-  const myProofs = certifiedOnly.filter(p => 
+  // Kişisel Kasa: Adresleri küçük harfe çevirerek karşılaştırıyoruz (Büyük-küçük harf hatasını çözer)
+  const myProofs = allProofs.filter(p => 
     userAddress && p.from && p.from.toLowerCase() === userAddress.toLowerCase()
   );
 
@@ -195,6 +199,9 @@ if (rawData.length > 0) {
             <button onClick={handleVerifyInquiry} className="w-full py-4 bg-indigo-600 text-white text-[10px] font-black tracking-[0.2em] rounded-full uppercase hover:bg-indigo-500 transition-all">Verify Integrity</button>
             {verifyStatus === 'success' && (
                <button onClick={downloadReport} className="w-full mt-4 py-3 bg-emerald-500/10 text-emerald-400 text-[9px] font-bold rounded-full border border-emerald-500/20 uppercase animate-pulse">Download Official Certificate</button>
+            )}
+            {verifyStatus === 'fail' && (
+               <p className="mt-4 text-center text-[10px] text-red-400 uppercase font-bold">No Match Found in Ledger</p>
             )}
           </div>
 
