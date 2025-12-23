@@ -5,12 +5,10 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  // En sade ve hata payı en düşük sorgu
   const query = `
     query {
       transactions(
-        limit: 50, 
-        sortBy: DATETIME_DESC, 
+        limit: 100, 
         query: { 
           OR: [
             { to: "${zkAppAddress}" },
@@ -29,24 +27,17 @@ export async function GET() {
   `;
 
   try {
-    const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
+    const response = await fetch('https://api.minascan.io/devnet/v1/graphql', {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
     });
 
     const result = await response.json();
-
-    if (!result.data || !result.data.transactions) {
-      return NextResponse.json({ data: { transactions: [] } });
-    }
-    
     return NextResponse.json(result);
 
   } catch (error) {
+    console.error("Fetch error:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }
