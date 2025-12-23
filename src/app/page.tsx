@@ -7,133 +7,148 @@ export default function FuturisticDashboard() {
 
   const fetchTransactions = async () => {
     try {
-      // Doğrudan Minascan API'sini sorguluyoruz
-      const response = await fetch(
-        'https://api.minascan.io/node/devnet/v1/graphql', 
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: `
-              query {
-                transactions(
-                  query: { 
-                    to: "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v",
-                    canonical: true 
-                  }, 
-                  limit: 20, 
-                  sortBy: DATETIME_DESC
-                ) {
-                  hash
-                  from
-                  amount
-                  dateTime
-                  memo
-                  status
-                }
-              }
-            `
-          }),
-        }
-      );
-
+      // ÖNEMLİ: Artık doğrudan Minascan'a değil, kendi oluşturduğumuz Proxy API'sine gidiyoruz
+      const response = await fetch('/api/mina');
+      
+      if (!response.ok) throw new Error('Proxy API yanıt vermiyor');
+      
       const result = await response.json();
+      
+      // Gelen veriyi konsolda kontrol et
+      console.log("Sunucudan Gelen Veri:", result);
+
       const txs = result.data?.transactions || [];
 
       if (txs.length > 0) {
         const formatted = txs.map((tx: any) => ({
           id: tx.hash,
-          // Memo içinde "OV_Twitter" gibi bir ibare varsa onu ayıklar
-          source: tx.memo && tx.memo.includes('Twitter') ? 'Twitter (X)' : 'WhatsApp / Web',
+          // Memo içinde 'twitter' geçiyorsa kaynağı X yapıyoruz
+          source: tx.memo && tx.memo.toLowerCase().includes('twitter') ? 'Twitter (X)' : 'WhatsApp / Web',
           category: 'ZK-Attestation',
           date: new Date(tx.dateTime).toLocaleString('tr-TR'),
           status: tx.status === 'applied' ? 'VERIFIED' : 'PENDING',
           hash: tx.hash
         }));
         setProofs(formatted);
+      } else {
+        setProofs([]);
       }
       setLoading(false);
     } catch (e) {
-      console.error("Veri çekme hatası:", e);
+      console.error("Dashboard veri çekme hatası:", e);
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchTransactions();
-    const interval = setInterval(fetchTransactions, 20000); // 20 saniyede bir tazele
+    // Her 15 saniyede bir otomatik yenileme
+    const interval = setInterval(fetchTransactions, 15000); 
     return () => clearInterval(interval);
   }, []);
 
   const shareOnTwitter = (hash: string) => {
-    const text = `I just notarized data on @MinaProtocol! ✅%0AProof: ${hash.slice(0,15)}...%0AVerified via OmniVerify`;
+    const text = `I just notarized data on @MinaProtocol! ✅%0AProof Hash: ${hash.slice(0,15)}...%0AVerified via OmniVerify Protocol`;
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
   };
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-slate-200 p-4 md:p-12 font-mono relative">
-      {/* Dekoratif Glow */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(79,70,229,0.05),transparent)] pointer-events-none"></div>
+      {/* Arka Plan Glow Efekti */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.08),transparent)] pointer-events-none"></div>
 
       <div className="max-w-6xl mx-auto relative">
-        <header className="flex justify-between items-center mb-12 border-b border-white/10 pb-8">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 border-b border-white/10 pb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic">OmniVerify <span className="text-indigo-500">Explorer</span></h1>
-            <p className="text-[10px] text-slate-500 tracking-[0.3em] mt-2">MINA DEVNET LIVE NOTARY FEED</p>
+            <h1 className="text-3xl font-black tracking-tighter text-white uppercase italic">
+              OmniVerify <span className="text-indigo-500">Explorer</span>
+            </h1>
+            <p className="text-[10px] text-slate-500 tracking-[0.4em] mt-2 italic font-bold">MINA DEVNET LIVE NOTARY FEED</p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-full">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            <span className="text-emerald-500 text-[10px] font-bold uppercase">Network: Devnet</span>
+          
+          <div className="flex items-center gap-3 px-4 py-2 bg-indigo-500/5 border border-indigo-500/20 rounded-xl">
+            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_10px_#6366f1]"></div>
+            <span className="text-indigo-400 text-[10px] font-bold uppercase tracking-widest">Network: Devnet Active</span>
           </div>
         </header>
 
-        <div className="bg-[#111114] border border-white/5 rounded-2xl shadow-2xl overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="text-[10px] text-slate-500 bg-white/[0.02] uppercase tracking-widest border-b border-white/5">
-                <th className="p-6">Origin</th>
-                <th className="p-6">Timestamp</th>
-                <th className="p-6">Status</th>
-                <th className="p-6">Transaction Hash</th>
-                <th className="p-6 text-right">Social</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {proofs.length > 0 ? (
-                proofs.map((proof) => (
-                  <tr key={proof.id} className="border-b border-white/5 hover:bg-white/[0.03] transition-colors group">
-                    <td className="p-6 font-bold text-slate-300">{proof.source}</td>
-                    <td className="p-6 text-slate-500 text-xs">{proof.date}</td>
-                    <td className="p-6">
-                      <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black rounded uppercase">
-                        {proof.status}
-                      </span>
-                    </td>
-                    <td className="p-6 font-mono text-slate-600 text-[11px]">
-                      <a href={`https://minascan.io/devnet/tx/${proof.hash}`} target="_blank" rel="noreferrer" className="hover:text-indigo-400">
-                        {proof.hash.slice(0, 24)}...
-                      </a>
-                    </td>
-                    <td className="p-6 text-right">
-                      <button 
-                        onClick={() => shareOnTwitter(proof.hash)}
-                        className="bg-white/5 hover:bg-indigo-600 text-white px-4 py-2 rounded text-[10px] font-bold transition-all uppercase"
-                      >
-                        Share
-                      </button>
+        <div className="bg-[#111114]/80 border border-white/5 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-[10px] text-slate-500 bg-white/[0.03] uppercase tracking-[0.2em] border-b border-white/5">
+                  <th className="p-8">Origin Source</th>
+                  <th className="p-8">Timestamp</th>
+                  <th className="p-8">Security Status</th>
+                  <th className="p-8">Transaction Hash</th>
+                  <th className="p-8 text-right">Verification</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {proofs.length > 0 ? (
+                  proofs.map((proof) => (
+                    <tr key={proof.id} className="border-b border-white/5 hover:bg-white/[0.03] transition-all duration-300 group">
+                      <td className="p-8 font-bold text-slate-300">
+                         <span className="flex items-center gap-3">
+                            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]"></span>
+                            {proof.source}
+                         </span>
+                      </td>
+                      <td className="p-8 text-slate-500 text-xs">{proof.date}</td>
+                      <td className="p-8">
+                        <span className={`px-3 py-1 border text-[10px] font-black rounded-lg tracking-tighter uppercase ${
+                          proof.status === 'VERIFIED' 
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                        }`}>
+                          {proof.status}
+                        </span>
+                      </td>
+                      <td className="p-8 font-mono text-slate-600 text-[11px] group-hover:text-indigo-400 transition-colors">
+                        <a 
+                          href={`https://minascan.io/devnet/tx/${proof.hash}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                        >
+                          {proof.hash.slice(0, 25)}...
+                        </a>
+                      </td>
+                      <td className="p-8 text-right">
+                        <button 
+                          onClick={() => shareOnTwitter(proof.hash)}
+                          className="bg-white/5 hover:bg-indigo-600 text-white px-5 py-2 rounded-xl text-[10px] font-bold transition-all uppercase border border-white/10 hover:border-indigo-400 shadow-lg hover:shadow-indigo-500/20"
+                        >
+                          Share Proof
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="p-32 text-center">
+                      <div className="flex flex-col items-center gap-5">
+                          {loading ? (
+                            <>
+                              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                              <p className="text-slate-500 italic tracking-[0.3em] text-xs uppercase animate-pulse">Synchronizing with Mina Ledger...</p>
+                            </>
+                          ) : (
+                            <p className="text-slate-600 italic tracking-[0.2em] text-xs uppercase italic font-bold">No active proofs detected on this address.</p>
+                          )}
+                      </div>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="p-32 text-center text-slate-600 italic tracking-widest">
-                    {loading ? "INITIALIZING BLOCKCHAIN CONNECTION..." : "NO TRANSACTIONS FOUND IN THIS EPOCH."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+        
+        <footer className="mt-12 text-center border-t border-white/5 pt-8">
+           <p className="text-[9px] text-slate-700 tracking-[0.5em] uppercase font-bold">
+             Immutable Data Integrity Powered by Zero Knowledge Proofs
+           </p>
+        </footer>
       </div>
     </div>
   );
