@@ -55,34 +55,34 @@ export default function FuturisticDashboard() {
         }
       `;
 
-      // Doğrudan tarayıcıdan Mina Explorer Proxy'sine bağlanıyoruz
-      const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
+      // Sertifikası sağlam olan Minascan Node'unu kullanıyoruz
+      const response = await fetch('https://devnet.api.minascan.io/node/graphql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
       });
 
+      if (!response.ok) throw new Error("Network response was not ok");
+
       const result = await response.json();
-      console.log("=== MINA RAW DATA ===", result); // Console'da bunu görmen lazım!
+      console.log("=== MINASCAN RAW DATA ===", result);
 
       const rawData = result.data?.transactions || [];
 
       if (rawData.length > 0) {
         const formatted = rawData.map((item: any) => ({
           id: item.hash,
-          memoHash: item.memo ? item.memo.toString().trim() : "Encrypted",
-          source: (item.memo || "").length > 15 ? 'X.com Verified' : 'Universal Entry',
+          memoHash: item.memo ? item.memo.toString().trim() : "Encrypted Proof",
+          source: (item.memo || "").includes('Proof') || (item.memo || "").length > 15 ? 'X.com Verified' : 'Universal Entry',
           date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Certified',
-          status: 'CERTIFIED', // Gelenler zaten başarılı işlemlerdir
+          status: 'CERTIFIED',
           hash: item.hash,
           from: item.from || "" 
         }));
         setAllProofs(formatted);
-      } else {
-        console.warn("Mina ağında bu adrese ait işlem bulunamadı.");
       }
     } catch (e) { 
-      console.error("Mina Connection Error:", e); 
+      console.error("Minascan Connection Error:", e); 
     } finally { 
       setLoading(false); 
     }
