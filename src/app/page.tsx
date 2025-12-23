@@ -1,16 +1,18 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Mina, PublicKey, fetchEvents } from 'o1js';
 
 export default function FuturisticDashboard() {
   const [proofs, setProofs] = useState<any[]>([]);
   const [walletAddress, setWalletAddress] = useState("Bağlı Değil");
   const [loading, setLoading] = useState(true);
 
-  // 1. Mina Olaylarını Çekme Mantığı (Mantık Bölümü - Return'den Önce)
+  // 1. Mina Olaylarını Çekme Mantığı (Client-side Only)
   useEffect(() => {
     const fetchMinaEvents = async () => {
       try {
+        // o1js'i dinamik olarak yüklüyoruz (Vercel Build hatasını çözer)
+        const { Mina, PublicKey, fetchEvents } = await import('o1js');
+        
         // Devnet'e bağlan
         const Network = Mina.Network('https://api.minascan.io/node/devnet/v1/graphql');
         Mina.setActiveInstance(Network);
@@ -22,16 +24,15 @@ export default function FuturisticDashboard() {
         
         // Olayları tablo formatına dönüştürelim
         const formattedProofs = fetchedEvents.flatMap((eventGroup) => 
-  eventGroup.events.map((eventData, i) => ({
-    id: `${eventGroup.blockHash}-${i}`,
-    source: 'Verified Web Source',
-    category: 'ZK-Attestation',
-    date: new Date().toLocaleDateString(),
-    status: 'VERIFIED',
-    // eventData.data artık Field dizisidir, toString() ile okunabilir hale getiriyoruz
-    hash: eventData.data[0]?.toString().slice(0, 20) + "..."
-  }))
-);
+          eventGroup.events.map((eventData, i) => ({
+            id: `${eventGroup.blockHash}-${i}`,
+            source: 'Verified Web Source',
+            category: 'ZK-Attestation',
+            date: new Date().toLocaleDateString(),
+            status: 'VERIFIED',
+            hash: eventData.data[0]?.toString().slice(0, 20) + "..."
+          }))
+        );
 
         setProofs(formattedProofs);
         setLoading(false);
@@ -81,7 +82,7 @@ export default function FuturisticDashboard() {
 
         {/* Tablo */}
         <div className="bg-white/[0.02] border border-white/5 rounded-2xl backdrop-blur-xl shadow-2xl overflow-hidden">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="text-[10px] text-slate-500 border-b border-white/5 uppercase tracking-widest">
                 <th className="p-6">Origin</th>
@@ -108,8 +109,8 @@ export default function FuturisticDashboard() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-20 text-center text-slate-600">
-                    {loading ? "Mina Ağı Dinleniyor..." : "Aktif kanıt bulunamadı. Eklentiyi kullanın."}
+                  <td colSpan={5} className="p-20 text-center text-slate-600 italic">
+                    {loading ? "Mina Ağı Dinleniyor (WASM)..." : "Aktif kanıt bulunamadı. Eklentiyi kullanın."}
                   </td>
                 </tr>
               )}
