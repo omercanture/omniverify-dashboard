@@ -28,8 +28,8 @@ export async function GET() {
   `;
 
   try {
-    // ARIZALI ENDPOINT DEĞİŞTİRİLDİ: MinaScan resmi API'sine geçildi
-    const response = await fetch('https://api.minascan.io/devnet/v1/graphql', {
+    // EN GÜNCEL DEVNET ENDPOINT: devnet.api.minascan.io/node/graphql
+    const response = await fetch('https://devnet.api.minascan.io/node/graphql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
@@ -37,7 +37,7 @@ export async function GET() {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+      throw new Error(`HTTP Error: ${response.status} - Path might have changed`);
     }
 
     const result = await response.json();
@@ -46,7 +46,7 @@ export async function GET() {
       debug: {
         status: response.status,
         count: result.data?.transactions?.length || 0,
-        source: "MinaScan API"
+        source: "MinaScan Devnet Node"
       },
       data: {
         transactions: result.data?.transactions || []
@@ -54,11 +54,10 @@ export async function GET() {
     });
 
   } catch (error: any) {
-    // Hata durumunda hala null dönmemesi için detaylı hata raporu
     return NextResponse.json({ 
-      error: "API_ACCESS_FAILED", 
+      error: "ENDPOINT_CONNECTION_FAILED", 
       message: error.message,
-      target: "api.minascan.io" 
+      target: "devnet.api.minascan.io"
     });
   }
 }
