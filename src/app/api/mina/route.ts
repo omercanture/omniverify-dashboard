@@ -5,8 +5,6 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  // En sağlam sorgu: Tablo ismini 'transactions' yapıp, 
-  // filtreyi sadece 'to' (alıcı) üzerinden kuruyoruz.
   const query = `
     query {
       transactions(
@@ -20,13 +18,11 @@ export async function GET() {
         memo
         dateTime
         status
-        kind
       }
     }
   `;
 
   try {
-    // Önce MinaExplorer'ı deniyoruz (genellikle daha stabildir)
     const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -35,16 +31,21 @@ export async function GET() {
     });
 
     const result = await response.json();
-    const txs = result.data?.transactions || [];
+    
+    // Hata kontrolü
+    if (result.errors) {
+      console.error("GraphQL Error:", result.errors);
+      return NextResponse.json({ data: { transactions: [] } });
+    }
 
     return NextResponse.json({
       data: {
-        transactions: txs
+        transactions: result.data?.transactions || []
       }
     });
 
   } catch (error) {
-    console.error("Fetch hatası:", error);
+    console.error("Fetch Error:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }
