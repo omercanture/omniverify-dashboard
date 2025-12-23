@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
-// TypeScript hatasını çözen blok:
 declare global {
   interface Window {
     mina?: any;
@@ -15,16 +14,13 @@ export default function FuturisticDashboard() {
   const [userAddress, setUserAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // State: Verification
   const [textToVerify, setTextToVerify] = useState("");
   const [verifyStatus, setVerifyStatus] = useState<'idle' | 'success' | 'fail'>('idle');
   const [verifiedProofData, setVerifiedProofData] = useState<any>(null);
 
-  // State: File Notary
   const [fileHash, setFileHash] = useState<string | null>(null);
   const [isHashing, setIsHashing] = useState(false);
 
-  // 1. Cüzdan Bağlantısı
   const connectWallet = async () => {
     if (typeof window.mina !== 'undefined') {
       try {
@@ -38,26 +34,24 @@ export default function FuturisticDashboard() {
     }
   };
 
-  // 2. Veri Çekme (Global)
   const fetchTransactions = useCallback(async () => {
     try {
       const response = await fetch('/api/mina', { cache: 'no-store' });
       const result = await response.json();
-      const rawData = result.data?.zkapps || result.data?.transactions || [];
+      const rawData = result.data?.transactions || [];
 
       if (rawData.length > 0) {
         const formatted = rawData.map((item: any) => ({
-  id: item.hash,
-  memoHash: (item.zkappCommand?.memo || item.memo || "").trim(),
-  source: (item.zkappCommand?.memo || item.memo || "").toLowerCase().includes('twitter') ? 'X.com Verified' : 
-          (item.zkappCommand?.memo || item.memo || "").toLowerCase().includes('whatsapp') ? 'WhatsApp Secure' : 'Universal Entry',
-  date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Syncing...',
-  status: item.status === 'applied' ? 'CERTIFIED' : 'PENDING',
-  hash: item.hash,
-  // Gönderen adresi API'den 'from' olarak gelmeli, gelmezse boş döner
-  from: item.from || "" 
-}));
-        // Yeniden eskiye sıralama (id/hash bazlı veya API sırasıyla)
+          id: item.hash,
+          memoHash: (item.memo || "").trim(),
+          source: (item.memo || "").toLowerCase().includes('twitter') ? 'X.com Verified' : 'Secure Web',
+          date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Syncing...',
+          status: item.status === 'applied' ? 'CERTIFIED' : 'PENDING',
+          hash: item.hash,
+          from: item.from || "" 
+        }));
+        
+        // Veriyi state'e kaydediyoruz
         setAllProofs(formatted);
       }
     } catch (e) { 
@@ -67,7 +61,6 @@ export default function FuturisticDashboard() {
     }
   }, []);
 
-  // 3. Dosya Hashleme
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -80,7 +73,6 @@ export default function FuturisticDashboard() {
     setIsHashing(false);
   };
 
-  // 4. Doğrulama
   const handleVerifyInquiry = async () => {
     if (!textToVerify) return;
     const cleanText = textToVerify.trim();
@@ -124,15 +116,20 @@ export default function FuturisticDashboard() {
     return () => clearInterval(interval);
   }, [fetchTransactions]);
 
-  // Filtrelenmiş veriler
-  const myProofs = allProofs.filter(p => 
-  p.from?.toLowerCase() === userAddress?.toLowerCase()
-);
-  const globalFeed = allProofs.slice(0, 5);
+  // --- HESAPLAMALAR BURADA OLMALI ---
+  // Sadece onaylanmış (applied) olanları filtrele
+  const certifiedOnly = allProofs.filter(p => p.status === 'CERTIFIED');
+
+  // Kişisel Kasa: Adres eşleşenleri filtrele
+  const myProofs = certifiedOnly.filter(p => 
+    userAddress && p.from && p.from.toLowerCase() === userAddress.toLowerCase()
+  );
+
+  // Global Akış: Son 5 onaylanmış işlem
+  const globalFeed = certifiedOnly.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-[#050505] text-slate-300 font-sans selection:bg-indigo-500/30 pb-20">
-      {/* Glow Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-5%] left-[-5%] w-[30%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full"></div>
         <div className="absolute bottom-[5%] right-[-5%] w-[30%] h-[30%] bg-purple-600/5 blur-[100px] rounded-full"></div>
@@ -187,9 +184,7 @@ export default function FuturisticDashboard() {
           </section>
         )}
 
-        {/* MIDDLE SECTION: TOOLS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20">
-          {/* Authenticate Reality */}
           <div className="bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl">
             <h3 className="text-white text-sm font-bold uppercase tracking-widest mb-6 italic">Authenticate Content</h3>
             <textarea 
@@ -204,7 +199,6 @@ export default function FuturisticDashboard() {
             )}
           </div>
 
-          {/* Document Notary */}
           <div className="bg-indigo-600/5 border border-indigo-500/10 rounded-[2.5rem] p-8 flex flex-col justify-center items-center text-center">
             <h3 className="text-indigo-400 text-sm font-bold uppercase tracking-widest mb-4 italic">Asset Notary</h3>
             <p className="text-[10px] text-slate-500 mb-6 leading-relaxed uppercase font-bold tracking-tighter">Mina ZK-Notarization for Deeds, IDs, and Physical Assets.</p>
@@ -216,7 +210,6 @@ export default function FuturisticDashboard() {
           </div>
         </div>
 
-        {/* BOTTOM SECTION: GLOBAL FEED */}
         <section>
           <div className="flex items-center gap-4 mb-8">
             <h2 className="text-sm font-black tracking-[0.4em] text-slate-500 uppercase italic">Global Ledger Feed</h2>
@@ -224,7 +217,7 @@ export default function FuturisticDashboard() {
           </div>
           
           <div className="space-y-4">
-            {globalFeed.map((proof) => (
+            {globalFeed.length > 0 ? globalFeed.map((proof) => (
               <div key={proof.id} className="bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 p-5 rounded-2xl flex items-center justify-between transition-all group">
                 <div className="flex items-center gap-4">
                   <div className={`w-2 h-2 rounded-full ${proof.status === 'CERTIFIED' ? 'bg-indigo-500 shadow-[0_0_8px_#6366f1]' : 'bg-amber-500 animate-pulse'}`}></div>
@@ -237,7 +230,9 @@ export default function FuturisticDashboard() {
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                 </a>
               </div>
-            ))}
+            )) : (
+              <p className="text-center py-10 text-[10px] text-slate-600 uppercase tracking-widest animate-pulse">Syncing Universal Ledger...</p>
+            )}
           </div>
         </section>
 

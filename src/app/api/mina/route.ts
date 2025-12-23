@@ -8,7 +8,11 @@ export async function GET() {
   // Sorguya 'from' alanını ekledik ki kişisel kasayı (Personal Vault) doldurabilelim
   const query = `
     query {
-      transactions(query: { to: "${zkAppAddress}" }, limit: 20, sortBy: DATETIME_DESC) {
+      transactions(
+        query: { to: "${zkAppAddress}" }, 
+        limit: 20, 
+        sortBy: DATETIME_DESC
+      ) {
         hash
         from
         dateTime
