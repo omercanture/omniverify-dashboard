@@ -1,51 +1,54 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 export default function FuturisticDashboard() {
   const [proofs, setProofs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
-      // ÖNEMLİ: Artık doğrudan Minascan'a değil, kendi oluşturduğumuz Proxy API'sine gidiyoruz
-      const response = await fetch('/api/mina');
+      console.log("OmniVerify: Blockchain verileri senkronize ediliyor...");
+      const response = await fetch('/api/mina', { cache: 'no-store' });
       
       if (!response.ok) throw new Error('Proxy API yanıt vermiyor');
       
       const result = await response.json();
-      
-      // Gelen veriyi konsolda kontrol et
       console.log("Sunucudan Gelen Veri:", result);
 
-      const txs = result.data?.transactions || [];
+      // Veriyi hem 'zkapps' hem de 'transactions' dizileri için kontrol ediyoruz
+      const rawData = result.data?.zkapps || result.data?.transactions || [];
 
-      if (txs.length > 0) {
-        const formatted = txs.map((tx: any) => ({
-          id: tx.hash,
-          // Memo içinde 'twitter' geçiyorsa kaynağı X yapıyoruz
-          source: tx.memo && tx.memo.toLowerCase().includes('twitter') ? 'Twitter (X)' : 'WhatsApp / Web',
-          category: 'ZK-Attestation',
-          date: new Date(tx.dateTime).toLocaleString('tr-TR'),
-          status: tx.status === 'applied' ? 'VERIFIED' : 'PENDING',
-          hash: tx.hash
-        }));
+      if (rawData.length > 0) {
+        const formatted = rawData.map((item: any) => {
+          // Farklı şema yapılarına göre veri ayıklama (zkappCommand veya direkt memo)
+          const memo = item.zkappCommand?.memo || item.memo || "";
+          const source = memo.toLowerCase().includes('twitter') ? 'Twitter (X)' : 'WhatsApp / Web';
+          
+          return {
+            id: item.hash,
+            source: source,
+            category: 'ZK-Attestation',
+            date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Pending',
+            status: item.status === 'applied' ? 'VERIFIED' : 'PENDING',
+            hash: item.hash
+          };
+        });
         setProofs(formatted);
       } else {
         setProofs([]);
       }
-      setLoading(false);
     } catch (e) {
       console.error("Dashboard veri çekme hatası:", e);
+    } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTransactions();
-    // Her 15 saniyede bir otomatik yenileme
-    const interval = setInterval(fetchTransactions, 15000); 
+    const interval = setInterval(fetchTransactions, 20000); 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchTransactions]);
 
   const shareOnTwitter = (hash: string) => {
     const text = `I just notarized data on @MinaProtocol! ✅%0AProof Hash: ${hash.slice(0,15)}...%0AVerified via OmniVerify Protocol`;
@@ -54,7 +57,6 @@ export default function FuturisticDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-slate-200 p-4 md:p-12 font-mono relative">
-      {/* Arka Plan Glow Efekti */}
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.08),transparent)] pointer-events-none"></div>
 
       <div className="max-w-6xl mx-auto relative">
