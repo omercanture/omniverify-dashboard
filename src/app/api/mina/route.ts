@@ -5,36 +5,59 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  // Dokümandaki account/transactions mantığına göre oluşturulan REST URL
-  const url = `https://api.minaexplorer.com/accounts/${zkAppAddress}/transactions`;
+  // Dökümandaki resmi GraphQL şemasına göre oluşturulan sorgu
+  const query = `
+    query {
+      transactions(
+        limit: 25, 
+        sortBy: DATETIME_DESC, 
+        query: {
+          canonical: true,
+          OR: [
+            { to: "${zkAppAddress}" },
+            { from: "${zkAppAddress}" }
+          ],
+          # Varsayılan boş memo değerine eşit olmayanları getir (Dökümandaki değer)
+          memo_ne: "E4YM2vTHhWEg66xpj52JErHUBU4pZ1yageL4TVDDpTTSsv8mK6YaH"
+        }
+      ) {
+        fee
+        from
+        to
+        nonce
+        amount
+        memo
+        hash
+        kind
+        dateTime
+        failureReason
+      }
+    }
+  `;
 
   try {
-    const response = await fetch(url, {
-      method: 'GET',
+    const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
       cache: 'no-store'
     });
 
     const result = await response.json();
 
-    // MinaExplorer REST API genellikle direkt bir liste veya { transactions: [] } döner
-    const transactions = Array.isArray(result) ? result : (result.transactions || []);
+    if (result.errors) {
+      console.error("GraphQL Errors:", result.errors);
+      return NextResponse.json({ data: { transactions: [] } });
+    }
 
     return NextResponse.json({
       data: {
-        transactions: transactions.map((tx: any) => ({
-          hash: tx.hash,
-          from: tx.from,
-          to: tx.to,
-          memo: tx.memo || "",
-          dateTime: tx.dateTime || tx.timestamp,
-          status: tx.status === 'applied' ? 'applied' : 'pending'
-        }))
+        transactions: result.data?.transactions || []
       }
     });
 
   } catch (error) {
-    console.error("MinaExplorer REST Error:", error);
+    console.error("Fetch Error:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }
