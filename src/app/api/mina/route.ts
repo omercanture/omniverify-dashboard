@@ -4,61 +4,55 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
-  
-  // En temel ve standart Mina GraphQL sorgusu
-  const query = `
-    query {
-      transactions(
-        limit: 50, 
-        query: {
-          OR: [
-            { to: "${zkAppAddress}" },
-            { from: "${zkAppAddress}" }
-          ]
-        }
-      ) {
-        from
-        to
-        memo
-        hash
-        dateTime
-        status
-      }
-    }
-  `;
+  const apiKey = "nRFZ3N2QIFPLosXdW37KvvEnJ7evef";
+
+  // Blockberry REST API URL
+  const url = `https://api.blockberry.one/mina-devnet/v1/accounts/${zkAppAddress}/txs?page=0&size=50&orderBy=DESC&sortBy=AGE&direction=ALL`;
 
   try {
-    // RESMİ MINA DEVNET PROXY ADRESİ (Auro Wallet'ın kullandığı adreslerden biri)
-    const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-      cache: 'no-store'
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 
+        'accept': 'application/json',
+        'x-api-key': apiKey 
+      },
+      next: { revalidate: 0 }
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+      const errData = await response.text();
+      return NextResponse.json({ error: "BLOCKBERRY_REJECTED", details: errData });
     }
 
     const result = await response.json();
+    
+    // Blockberry 'content' dizisi içinde verileri döner
+    const txs = result.content || [];
+
+    // Dashboard'un beklediği formata dönüştürme
+    const formatted = txs.map((tx: any) => ({
+      from: tx.from,
+      to: tx.to,
+      memo: tx.memo || "",
+      hash: tx.hash,
+      dateTime: tx.timestamp, // Blockberry timestamp döner
+      status: (tx.status === 'applied' || tx.status === 'SUCCESS') ? 'applied' : 'pending'
+    }));
 
     return NextResponse.json({
       debug: {
-        status: response.status,
-        count: result.data?.transactions?.length || 0,
-        source: "Mina Explorer Proxy"
+        source: "Blockberry REST",
+        count: formatted.length
       },
       data: {
-        transactions: result.data?.transactions || []
+        transactions: formatted
       }
     });
 
   } catch (error: any) {
-    // SON ÇARE: Eğer bu da hata verirse, Blockberry REST API'ye mecburi dönüş
     return NextResponse.json({ 
-      error: "ALL_MINA_ENDPOINTS_FAILED", 
-      message: error.message,
-      suggestion: "Check Blockberry API Key"
+      error: "REST_FETCH_FAILED", 
+      message: error.message 
     });
   }
 }
