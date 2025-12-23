@@ -47,14 +47,16 @@ export default function FuturisticDashboard() {
 
       if (rawData.length > 0) {
         const formatted = rawData.map((item: any) => ({
-          id: item.hash,
-          memoHash: (item.zkappCommand?.memo || item.memo || "").trim(),
-          source: (item.zkappCommand?.memo || item.memo || "").toLowerCase().includes('twitter') ? 'X.com' : 'Secure Web',
-          date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Syncing...',
-          status: item.status === 'applied' ? 'CERTIFIED' : 'PENDING',
-          hash: item.hash,
-          from: item.from || "" // Gönderen adresi
-        }));
+  id: item.hash,
+  memoHash: (item.zkappCommand?.memo || item.memo || "").trim(),
+  source: (item.zkappCommand?.memo || item.memo || "").toLowerCase().includes('twitter') ? 'X.com Verified' : 
+          (item.zkappCommand?.memo || item.memo || "").toLowerCase().includes('whatsapp') ? 'WhatsApp Secure' : 'Universal Entry',
+  date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Syncing...',
+  status: item.status === 'applied' ? 'CERTIFIED' : 'PENDING',
+  hash: item.hash,
+  // Gönderen adresi API'den 'from' olarak gelmeli, gelmezse boş döner
+  from: item.from || "" 
+}));
         // Yeniden eskiye sıralama (id/hash bazlı veya API sırasıyla)
         setAllProofs(formatted);
       }
@@ -123,7 +125,9 @@ export default function FuturisticDashboard() {
   }, [fetchTransactions]);
 
   // Filtrelenmiş veriler
-  const myProofs = allProofs.filter(p => p.from === userAddress);
+  const myProofs = allProofs.filter(p => 
+  p.from?.toLowerCase() === userAddress?.toLowerCase()
+);
   const globalFeed = allProofs.slice(0, 5);
 
   return (
