@@ -36,44 +36,17 @@ export default function FuturisticDashboard() {
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
-      
-      const query = `
-        query {
-          transactions(
-            limit: 20, 
-            sortBy: DATETIME_DESC, 
-            query: { to: "${zkAppAddress}" }
-          ) {
-            hash
-            from
-            to
-            memo
-            dateTime
-            status
-          }
-        }
-      `;
-
-      // Sertifikası sağlam olan Minascan Node'unu kullanıyoruz
-      const response = await fetch('https://devnet.api.minascan.io/node/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!response.ok) throw new Error("Network response was not ok");
-
+      // Kendi API endpoint'imiz sunucuda SSL'i baypas ediyor
+      const response = await fetch('/api/mina', { cache: 'no-store' });
       const result = await response.json();
-      console.log("=== MINASCAN RAW DATA ===", result);
-
+      
       const rawData = result.data?.transactions || [];
 
       if (rawData.length > 0) {
         const formatted = rawData.map((item: any) => ({
           id: item.hash,
-          memoHash: item.memo ? item.memo.toString().trim() : "Encrypted Proof",
-          source: (item.memo || "").includes('Proof') || (item.memo || "").length > 15 ? 'X.com Verified' : 'Universal Entry',
+          memoHash: item.memo ? item.memo.toString().trim() : "",
+          source: (item.memo || "").includes('Proof') || (item.memo || "").length > 20 ? 'X.com Verified' : 'Universal Entry',
           date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Certified',
           status: 'CERTIFIED',
           hash: item.hash,
@@ -82,7 +55,7 @@ export default function FuturisticDashboard() {
         setAllProofs(formatted);
       }
     } catch (e) { 
-      console.error("Minascan Connection Error:", e); 
+      console.error("API Sync Error:", e); 
     } finally { 
       setLoading(false); 
     }
