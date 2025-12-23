@@ -5,47 +5,43 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  const query = `
-    query {
-      transactions(
-        limit: 50, 
-        sortBy: DATETIME_DESC, 
-        query: { to: "${zkAppAddress}" }
-      ) {
-        hash
-        from
-        to
-        memo
-        dateTime
-        status
-      }
-    }
-  `;
+  // Blockberry API URL - Senin cüzdan adresinle
+  const url = `https://api.blockberry.one/mina-devnet/v1/accounts/${zkAppAddress}/txs?page=0&size=20&orderBy=DESC&sortBy=AGE&direction=ALL`;
 
   try {
-    const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 
+        'accept': 'application/json',
+        // Ücretsiz bir key alıp buraya koyman gerekebilir: https://dashboard.blockberry.one/
+        // 'x-api-key': 'undefined' 
+      },
       cache: 'no-store'
     });
 
     const result = await response.json();
-    
-    // Hata kontrolü
-    if (result.errors) {
-      console.error("GraphQL Error:", result.errors);
-      return NextResponse.json({ data: { transactions: [] } });
-    }
+
+    // Blockberry veri yapısını Dashboard'a uyumlu hale getiriyoruz
+    // Veri bazen result.content içinde bazen direkt result olarak gelir
+    const txList = result.content || (Array.isArray(result) ? result : []);
+
+    const formatted = txList.map((tx: any) => ({
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to,
+      memo: tx.memo || "",
+      dateTime: tx.timestamp ? new Date(tx.timestamp).toISOString() : new Date().toISOString(),
+      status: 'applied'
+    }));
 
     return NextResponse.json({
       data: {
-        transactions: result.data?.transactions || []
+        transactions: formatted
       }
     });
 
   } catch (error) {
-    console.error("Fetch Error:", error);
+    console.error("Blockberry Error:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }
