@@ -29,7 +29,7 @@ export async function GET() {
   `;
 
   try {
-    const response = await fetch('https://api.minascan.io/devnet/v1/graphql', {
+    const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
