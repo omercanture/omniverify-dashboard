@@ -5,11 +5,10 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  // Sorguya 'from' alanını ekledik ki kişisel kasayı (Personal Vault) doldurabilelim
   const query = `
     query {
       transactions(
-        query: { to: "${zkAppAddress}" }, 
+        query: { to: "${zkAppAddress}", status: "applied" }, 
         limit: 20, 
         sortBy: DATETIME_DESC
       ) {
@@ -30,31 +29,15 @@ export async function GET() {
     });
 
     const result = await response.json();
-
-    if (result.errors) {
-       console.error("GraphQL hatası:", result.errors);
-       return NextResponse.json({ data: { transactions: [] } });
-    }
     
+    // Eğer API'den veri boş gelirse veya catch'e düşerse hata fırlat ki mock veriye geçsin ama gerçek veriyi bekle
+    if (!result.data || !result.data.transactions || result.data.transactions.length === 0) {
+       console.log("Gerçek veri henüz API'ye yansımamış.");
+    }
+
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error("Bağlantı hatası:", error);
-    
-    // Hata durumunda dönecek örnek veriye de 'from' ekledik
-    // Buradaki 'from' adresi senin test adresinle değiştirilebilir
-    return NextResponse.json({ 
-      data: { 
-        transactions: [
-          {
-            hash: "5Jtm6WDJM4_Sample_Hash",
-            from: "B62qrp_Sample_Sender_Address", 
-            dateTime: new Date().toISOString(),
-            status: "applied",
-            memo: "Twitter_Verified_Sample"
-          }
-        ] 
-      } 
-    });
+    return NextResponse.json({ data: { transactions: [] } });
   }
 }
