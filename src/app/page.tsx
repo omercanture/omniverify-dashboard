@@ -37,40 +37,52 @@ export default function FuturisticDashboard() {
   const fetchTransactions = useCallback(async () => {
     try {
       const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
-      const apiKey = "nRFZ3N2QIFPLosXdW37KvvEnJ7evef";
-      const url = `https://api.blockberry.one/mina-devnet/v1/accounts/${zkAppAddress}/txs?page=0&size=50&orderBy=DESC&sortBy=AGE&direction=ALL`;
-
-      // Vercel üzerinden değil, direkt tarayıcıdan (client-side) fetch yapıyoruz
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { 
-          'accept': 'application/json',
-          'x-api-key': apiKey 
+      
+      const query = `
+        query {
+          transactions(
+            limit: 20, 
+            sortBy: DATETIME_DESC, 
+            query: { to: "${zkAppAddress}" }
+          ) {
+            hash
+            from
+            to
+            memo
+            dateTime
+            status
+          }
         }
+      `;
+
+      // Doğrudan tarayıcıdan Mina Explorer Proxy'sine bağlanıyoruz
+      const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
       });
 
-      if (!response.ok) throw new Error("API hatası");
-
       const result = await response.json();
-      const rawData = result.content || [];
+      console.log("=== MINA RAW DATA ===", result); // Console'da bunu görmen lazım!
+
+      const rawData = result.data?.transactions || [];
 
       if (rawData.length > 0) {
-        const formatted = rawData.map((item: any) => {
-          const isApplied = item.status && item.status.toString().toLowerCase() === 'applied';
-          return {
-            id: item.hash,
-            memoHash: item.memo ? item.memo.toString().trim() : "",
-            source: (item.memo || "").includes('Proof') || (item.memo || "").length > 20 ? 'X.com Verified' : 'Universal Entry',
-            date: item.timestamp ? new Date(item.timestamp).toLocaleString('tr-TR') : 'Certified',
-            status: isApplied ? 'CERTIFIED' : 'PENDING',
-            hash: item.hash,
-            from: item.from || "" 
-          };
-        });
+        const formatted = rawData.map((item: any) => ({
+          id: item.hash,
+          memoHash: item.memo ? item.memo.toString().trim() : "Encrypted",
+          source: (item.memo || "").length > 15 ? 'X.com Verified' : 'Universal Entry',
+          date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Certified',
+          status: 'CERTIFIED', // Gelenler zaten başarılı işlemlerdir
+          hash: item.hash,
+          from: item.from || "" 
+        }));
         setAllProofs(formatted);
+      } else {
+        console.warn("Mina ağında bu adrese ait işlem bulunamadı.");
       }
     } catch (e) { 
-      console.error("Client-side Sync Error:", e); 
+      console.error("Mina Connection Error:", e); 
     } finally { 
       setLoading(false); 
     }
