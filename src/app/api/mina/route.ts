@@ -5,22 +5,25 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  // Hem transactions hem de zkappCommands tablosunu tarayan daha geniş bir sorgu
+  // En sade ve hata payı en düşük sorgu
   const query = `
     query {
       transactions(
+        limit: 50, 
+        sortBy: DATETIME_DESC, 
         query: { 
-          to: "${zkAppAddress}", 
-          canonical: true 
-        }, 
-        limit: 20, 
-        sortBy: DATETIME_DESC
+          OR: [
+            { to: "${zkAppAddress}" },
+            { from: "${zkAppAddress}" }
+          ]
+        }
       ) {
         hash
         from
+        to
+        memo
         dateTime
         status
-        memo
       }
     }
   `;
@@ -28,13 +31,15 @@ export async function GET() {
   try {
     const response = await fetch('https://api.minascan.io/devnet/v1/graphql', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
       body: JSON.stringify({ query }),
     });
 
     const result = await response.json();
 
-    // Eğer veri gelmiyorsa, API'nin bazen hata vermeden boş döndüğü durumlar için kontrol
     if (!result.data || !result.data.transactions) {
       return NextResponse.json({ data: { transactions: [] } });
     }
@@ -42,7 +47,6 @@ export async function GET() {
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error("Fetch error:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }
