@@ -36,20 +36,32 @@ export default function FuturisticDashboard() {
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const response = await fetch('/api/mina', { cache: 'no-store' });
+      const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
+      const apiKey = "nRFZ3N2QIFPLosXdW37KvvEnJ7evef";
+      const url = `https://api.blockberry.one/mina-devnet/v1/accounts/${zkAppAddress}/txs?page=0&size=50&orderBy=DESC&sortBy=AGE&direction=ALL`;
+
+      // Vercel üzerinden değil, direkt tarayıcıdan (client-side) fetch yapıyoruz
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 
+          'accept': 'application/json',
+          'x-api-key': apiKey 
+        }
+      });
+
+      if (!response.ok) throw new Error("API hatası");
+
       const result = await response.json();
-      const rawData = result.data?.transactions || [];
+      const rawData = result.content || [];
 
       if (rawData.length > 0) {
         const formatted = rawData.map((item: any) => {
-          // Status kontrolünü güvenli hale getirdik (applied veya applied)
           const isApplied = item.status && item.status.toString().toLowerCase() === 'applied';
-          
           return {
             id: item.hash,
             memoHash: item.memo ? item.memo.toString().trim() : "",
             source: (item.memo || "").includes('Proof') || (item.memo || "").length > 20 ? 'X.com Verified' : 'Universal Entry',
-            date: item.dateTime ? new Date(item.dateTime).toLocaleString('tr-TR') : 'Certified',
+            date: item.timestamp ? new Date(item.timestamp).toLocaleString('tr-TR') : 'Certified',
             status: isApplied ? 'CERTIFIED' : 'PENDING',
             hash: item.hash,
             from: item.from || "" 
@@ -58,7 +70,7 @@ export default function FuturisticDashboard() {
         setAllProofs(formatted);
       }
     } catch (e) { 
-      console.error("Sync Error:", e); 
+      console.error("Client-side Sync Error:", e); 
     } finally { 
       setLoading(false); 
     }
