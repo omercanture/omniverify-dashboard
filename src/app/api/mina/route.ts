@@ -4,79 +4,53 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
-  
-  const query = `
-    query {
-      account(publicKey: "${zkAppAddress}") {
-        # 1. Standart Transferler
-        transactions(limit: 50) {
-          hash
-          from
-          to
-          memo
-          dateTime
-          status
-        }
-        # 2. ZKApp İşlemleri
-        zkappTransactions(limit: 50) {
-          hash
-          memo
-          dateTime
-        }
-        # 3. Akıllı Kontrat Event/Action Kayıtları (Gerçek Kanıtlar Burada Olabilir)
-        actionState
-      }
-    }
-  `;
+  const apiKey = "nRFZ3N2QIFPLosXdW37KvvEnJ7evef";
+
+  // Blockberry'nin "Account Transactions" endpoint'i (Tüm tipleri kapsar)
+  const url = `https://api.blockberry.one/mina-devnet/v1/accounts/${zkAppAddress}/txs?page=0&size=50&orderBy=DESC&sortBy=AGE&direction=ALL`;
 
   try {
-    const response = await fetch('https://proxy.devnet.minaexplorer.com/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-      cache: 'no-store'
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 
+        'accept': 'application/json',
+        'x-api-key': apiKey 
+      },
+      next: { revalidate: 0 }
     });
 
-    const result = await response.json();
-    const accountData = result?.data?.account;
-
-    if (!accountData) {
-      return NextResponse.json({ data: { transactions: [], debug: "Account not found on explorer" } });
+    if (!response.ok) {
+      throw new Error(`Blockberry Error: ${response.status}`);
     }
 
-    // Tüm veri kaynaklarını birleştiriyoruz
-    const regularTxs = accountData.transactions || [];
-    const zkappTxs = accountData.zkappTransactions || [];
+    const result = await response.json();
     
-    // Verileri normalize et
-    const combined = [...regularTxs, ...zkappTxs].map((tx: any) => ({
+    // Blockberry veriyi 'content' dizisi içinde döner
+    const txs = result.content || [];
+
+    // Eğer 'txs' hala boş gelirse, bu adres sadece 'Actions' üretiyordur.
+    // Bu durumda Actions endpoint'ini de deneyebiliriz (opsiyonel ama txs genelde yeterlidir)
+
+    const formatted = txs.map((tx: any) => ({
       hash: tx.hash,
-      from: tx.from || "zkApp Internal",
+      from: tx.from || "Internal",
       to: tx.to || zkAppAddress,
       memo: tx.memo || "ZK Proof",
-      dateTime: tx.dateTime || new Date().toISOString(),
-      status: 'applied'
+      dateTime: tx.timestamp || new Date().toISOString(),
+      status: (tx.status === 'applied' || tx.status === 'SUCCESS') ? 'applied' : 'failed'
     }));
-
-    // Eğer her şey boşsa ama 'actionState' varsa, manuel bir kayıt oluştur ki Dashboard boş kalmasın
-    if (combined.length === 0 && accountData.actionState) {
-        combined.push({
-            hash: "Internal_State_Change",
-            from: "zkApp",
-            to: zkAppAddress,
-            memo: "Contract State Updated (Proof)",
-            dateTime: new Date().toISOString(),
-            status: 'applied'
-        });
-    }
 
     return NextResponse.json({
       data: {
-        transactions: combined
+        transactions: formatted,
+        debug: { count: formatted.length, source: "Blockberry REST" }
       }
     });
 
-  } catch (error) {
-    return NextResponse.json({ data: { transactions: [] } });
+  } catch (error: any) {
+    return NextResponse.json({ 
+      data: { transactions: [] }, 
+      error: error.message 
+    });
   }
 }
