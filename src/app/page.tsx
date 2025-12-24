@@ -122,8 +122,8 @@ export default function FuturisticDashboard() {
 
   // Kişisel Kasa: Adresleri küçük harfe çevirerek karşılaştırıyoruz (Büyük-küçük harf hatasını çözer)
   const myProofs = allProofs.filter(p => 
-    userAddress && p.from && p.from.toLowerCase() === userAddress.toLowerCase()
-  );
+  userAddress && p.from && p.from.toString().toLowerCase().trim() === userAddress.toString().toLowerCase().trim()
+);
 
   // Global Akış: Son 5 onaylanmış işlem
   const globalFeed = certifiedOnly.slice(0, 5);
