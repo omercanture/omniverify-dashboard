@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const zkAppAddress = "B62qrkTv4TiLcZrZN9VYKd3ZLyg921fqmy3a18986dUW1xSh9WzV25v";
   
-  // Account üzerinden çekmek, transactions tablosunda arama yapmaktan çok daha hızlı ve kesindir.
   const query = `
     query {
       account(publicKey: "${zkAppAddress}") {
@@ -16,6 +15,12 @@ export async function GET() {
           hash
           dateTime
           status
+        }
+        zkappTransactions(limit: 50) {
+          hash
+          memo
+          dateTime
+          failureReason
         }
       }
     }
@@ -31,16 +36,30 @@ export async function GET() {
 
     const result = await response.json();
     
-    // Account altındaki işlemleri alıyoruz
-    const transactions = result?.data?.account?.transactions || [];
+    // DİKKAT: Hiyerarşiyi account üzerinden alıyoruz
+    const accountData = result?.data?.account;
+    const regularTxs = accountData?.transactions || [];
+    const zkappTxs = accountData?.zkappTransactions || [];
 
+    // İki listeyi birleştiriyoruz (Hangi tabloda olursa olsun veriyi yakalamak için)
+    const allTxs = [...regularTxs, ...zkappTxs].map((tx: any) => ({
+      hash: tx.hash,
+      from: tx.from || zkAppAddress, // zkApp tx'lerde from bazen farklı hiyerarşidedir
+      to: tx.to || zkAppAddress,
+      memo: tx.memo || "",
+      dateTime: tx.dateTime,
+      status: tx.failureReason ? 'failed' : 'applied'
+    }));
+
+    // Dashboard'un beklediği formatta döndür
     return NextResponse.json({
       data: {
-        transactions: transactions
+        transactions: allTxs
       }
     });
 
   } catch (error) {
+    console.error("Fetch Error:", error);
     return NextResponse.json({ data: { transactions: [] } });
   }
 }
